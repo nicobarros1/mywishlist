@@ -5,6 +5,7 @@ import { useState } from 'react'
 import CategoryCard from '../src/components/CategoryCard'
 import EditCategoryModal from '../src/components/EditCategoryModal' // Importar Modal
 import { useWishlist } from '../src/context/WishlistContext'
+import ShareButton from '../src/components/ShareButton' // <--- Importar
 
 export default function Home() {
   const { categories, addCategory, updateCategory, deleteCategory, user } = useWishlist()
@@ -30,13 +31,21 @@ export default function Home() {
     <div>
       {/* Header Sección */}
       <div className="flex flex-col sm:flex-row justify-between items-end mb-8 gap-4 border-b pb-6">
-        <div>
+        <div className="w-full sm:w-auto">
           <h2 className="text-3xl font-bold text-gray-800">
             {user ? `Hola, ${user.email?.split('@')[0]} 👋` : 'Bienvenido a MyWishlist'}
           </h2>
-          <p className="text-gray-500 mt-1">
-            {user ? 'Aquí están tus listas de regalos.' : 'Inicia sesión para crear tus listas.'}
-          </p>
+          
+          <div className="flex flex-wrap items-center gap-4 mt-2">
+            <p className="text-gray-500">
+              {user ? 'Aquí están tus listas de regalos.' : 'Inicia sesión para crear tus listas.'}
+            </p>
+            
+            {/* BOTÓN NUEVO: Compartir Perfil Completo */}
+            {user && (
+              <ShareButton url={`/u/${user.id}`} label="Copiar link de mi perfil" />
+            )}
+          </div>
         </div>
         
         {user && (
