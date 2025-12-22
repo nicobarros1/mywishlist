@@ -55,6 +55,7 @@ export async function analyzeProductUrl(url: string) {
           HTML: ${truncated}`
         }
       ],
+      // @ts-ignore
       response_format: { type: "json_object" }
     })
 
