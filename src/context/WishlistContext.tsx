@@ -12,68 +12,54 @@ type Gift = {
   imageUrl: string
   description?: string
   url: string
-  user_id?: string // Nuevo: para saber de quién es
+  user_id?: string
 }
 
 type Category = {
   id: string
   name: string
   color: string
-  user_id?: string // Nuevo
+  description?: string
+  user_id?: string
 }
 
+// AQUÍ ESTABA EL ERROR: Faltaba declarar updateCategory en la interfaz
 interface WishlistContextType {
   items: Record<string, Gift[]>
   categories: Category[]
   addGift: (categoryId: string, gift: any) => Promise<void>
   removeGift: (categoryId: string, giftId: string) => Promise<void>
   addCategory: (name: string) => Promise<void>
-  deleteCategory: (id: string) => Promise<void> // Ahora devuelve Promise
+  updateCategory: (id: string, updates: Partial<Category>) => Promise<void> // <--- ESTA ES LA LÍNEA CLAVE
+  deleteCategory: (id: string) => Promise<void>
   loading: boolean
-  user: any // Exponemos el usuario actual para saber qué botones mostrar
+  user: any
 }
 
 const WishlistContext = createContext<WishlistContextType | undefined>(undefined)
 
 export function WishlistProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<Record<string, Gift[]>>({})
-  const [categories, setCategories] = useState<Category[]>([]) // ¡Empieza vacío!
+  const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<any>(null)
 
-  // 1. CARGAR DATOS
   const fetchData = async () => {
     setLoading(true)
-    
-    // Obtener usuario actual
     const { data: { session } } = await supabase.auth.getSession()
     const currentUser = session?.user || null
     setUser(currentUser)
 
     try {
-      // A) Traer Categorías (Supabase ya filtra o muestra todo según nuestras reglas)
-      // Nota: Si queremos ver SOLO las mías en el Home, podríamos filtrar aquí.
-      // Por ahora traemos todas para permitir ver perfiles de amigos en el futuro.
-      const { data: catsData } = await supabase.from('categories').select('*')
+      const { data: catsData } = await supabase.from('categories').select('*').order('created_at', { ascending: true })
       if (catsData) setCategories(catsData)
 
-      // B) Traer Regalos
       const { data: giftsData } = await supabase.from('gifts').select('*')
-      
       if (giftsData) {
         const grouped: Record<string, Gift[]> = {}
         giftsData.forEach((g: any) => {
-          const formattedGift: Gift = {
-            id: g.id,
-            category_id: g.category_id,
-            name: g.name,
-            price: g.price,
-            currency: g.currency,
-            imageUrl: g.image_url,
-            description: g.description,
-            url: g.url,
-            user_id: g.user_id
-          }
+          // Mapeamos image_url (base de datos) a imageUrl (frontend)
+          const formattedGift: Gift = { ...g, imageUrl: g.image_url }
           if (!grouped[g.category_id]) grouped[g.category_id] = []
           grouped[g.category_id].push(formattedGift)
         })
@@ -88,7 +74,6 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     fetchData()
-    // Suscribirse a cambios de auth
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null)
       if(_event === 'SIGNED_IN' || _event === 'SIGNED_OUT') fetchData()
@@ -98,8 +83,6 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
 
   const addGift = async (categoryId: string, gift: any) => {
     if (!user) return alert('Debes iniciar sesión')
-    
-    // Optimistic
     const tempId = Date.now().toString()
     const newGiftUI = { ...gift, id: tempId, category_id: categoryId, user_id: user.id }
     setItems((prev) => ({ ...prev, [categoryId]: [...(prev[categoryId] || []), newGiftUI] }))
@@ -114,13 +97,7 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
       url: gift.url,
       user_id: user.id
     })
-    if (error) {
-      console.error(error)
-      alert('Error guardando regalo')
-      fetchData() // Revertir
-    } else {
-      fetchData() // Actualizar ID real
-    }
+    if (!error) fetchData()
   }
 
   const removeGift = async (categoryId: string, giftId: string) => {
@@ -132,51 +109,39 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
   }
 
   const addCategory = async (name: string) => {
-    if (!user) return alert('Debes iniciar sesión para crear categorías')
-
-    const newId = name.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now().toString().slice(-4) // ID único para evitar choques
-    const colors = ['bg-purple-500', 'bg-teal-500', 'bg-red-500', 'bg-yellow-500', 'bg-blue-600', 'bg-pink-600']
+    if (!user) return alert('Debes iniciar sesión')
+    const newId = name.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now().toString().slice(-4)
+    const colors = ['bg-blue-500', 'bg-indigo-500', 'bg-purple-500', 'bg-pink-500', 'bg-red-500', 'bg-orange-500', 'bg-yellow-500', 'bg-green-500', 'bg-teal-500', 'bg-cyan-500', 'bg-gray-800']
     const randomColor = colors[Math.floor(Math.random() * colors.length)]
-
+    
     const newCat = { id: newId, name, color: randomColor, user_id: user.id }
-
     setCategories(prev => [...prev, newCat])
 
-    const { error } = await supabase.from('categories').insert({
-      id: newId,
-      name,
-      color: randomColor,
-      user_id: user.id
-    })
-    
+    const { error } = await supabase.from('categories').insert(newCat)
+    if (error) fetchData()
+  }
+
+  const updateCategory = async (id: string, updates: Partial<Category>) => {
+    // Optimistic Update
+    setCategories(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c))
+
+    const { error } = await supabase.from('categories').update(updates).eq('id', id)
     if (error) {
       console.error(error)
-      alert('Error creando categoría')
+      alert('Error al actualizar')
       fetchData()
     }
   }
 
-  // ¡NUEVO! Función para borrar categoría
   const deleteCategory = async (id: string) => {
     if(!confirm('¿Estás seguro de borrar esta categoría y todos sus regalos?')) return
-
-    // Optimistic UI
     setCategories(prev => prev.filter(c => c.id !== id))
-    
-    // 1. Borrar la categoría (Supabase borrará los regalos en cascada si configuráramos cascade, 
-    // pero por seguridad borramos la categoría y dejamos que el backend maneje o borramos manual)
-    // Para simplificar: Borramos la categoría.
-    const { error } = await supabase.from('categories').delete().eq('id', id)
-    
-    if (error) {
-      console.error(error)
-      alert('No se pudo borrar (¿Quizás no es tuya?)')
-      fetchData()
-    }
+    await supabase.from('categories').delete().eq('id', id)
   }
 
   return (
-    <WishlistContext.Provider value={{ items, categories, addGift, removeGift, addCategory, deleteCategory, loading, user }}>
+    // IMPORTANTE: Aquí pasamos updateCategory al Provider
+    <WishlistContext.Provider value={{ items, categories, addGift, removeGift, addCategory, updateCategory, deleteCategory, loading, user }}>
       {children}
     </WishlistContext.Provider>
   )
