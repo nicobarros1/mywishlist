@@ -1,9 +1,10 @@
 import React from 'react'
-import { Trash2 } from 'lucide-react' // Asegúrate de tener lucide-react instalado
+import { Trash2 } from 'lucide-react'
+import type { Gift } from '../types/wishlist'
 
 interface GiftCardProps {
-  gift: any
-  onDelete?: () => void // Nueva prop opcional
+  gift: Gift
+  onDelete?: () => void
 }
 
 export default function GiftCard({ gift, onDelete }: GiftCardProps) {

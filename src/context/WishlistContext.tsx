@@ -2,38 +2,18 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import type { Gift, GiftInput, Category, User } from '../types/wishlist'
 
-type Gift = {
-  id: string
-  category_id: string
-  name: string
-  price: number
-  currency: string
-  imageUrl: string
-  description?: string
-  url: string
-  user_id?: string
-}
-
-type Category = {
-  id: string
-  name: string
-  color: string
-  description?: string
-  user_id?: string
-}
-
-// AQUÍ ESTABA EL ERROR: Faltaba declarar updateCategory en la interfaz
 interface WishlistContextType {
   items: Record<string, Gift[]>
   categories: Category[]
-  addGift: (categoryId: string, gift: any) => Promise<void>
+  addGift: (categoryId: string, gift: GiftInput) => Promise<void>
   removeGift: (categoryId: string, giftId: string) => Promise<void>
   addCategory: (name: string) => Promise<void>
-  updateCategory: (id: string, updates: Partial<Category>) => Promise<void> // <--- ESTA ES LA LÍNEA CLAVE
+  updateCategory: (id: string, updates: Partial<Category>) => Promise<void>
   deleteCategory: (id: string) => Promise<void>
   loading: boolean
-  user: any
+  user: User | null
 }
 
 const WishlistContext = createContext<WishlistContextType | undefined>(undefined)
@@ -42,7 +22,7 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<Record<string, Gift[]>>({})
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<User | null>(null)
 
   const fetchData = async () => {
     setLoading(true)
@@ -57,8 +37,7 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
       const { data: giftsData } = await supabase.from('gifts').select('*')
       if (giftsData) {
         const grouped: Record<string, Gift[]> = {}
-        giftsData.forEach((g: any) => {
-          // Mapeamos image_url (base de datos) a imageUrl (frontend)
+        giftsData.forEach((g: Gift & { image_url: string }) => {
           const formattedGift: Gift = { ...g, imageUrl: g.image_url }
           if (!grouped[g.category_id]) grouped[g.category_id] = []
           grouped[g.category_id].push(formattedGift)
@@ -81,10 +60,10 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe()
   }, [])
 
-  const addGift = async (categoryId: string, gift: any) => {
+  const addGift = async (categoryId: string, gift: GiftInput) => {
     if (!user) return alert('Debes iniciar sesión')
     const tempId = Date.now().toString()
-    const newGiftUI = { ...gift, id: tempId, category_id: categoryId, user_id: user.id }
+    const newGiftUI: Gift = { ...gift, id: tempId, category_id: categoryId, user_id: user.id }
     setItems((prev) => ({ ...prev, [categoryId]: [...(prev[categoryId] || []), newGiftUI] }))
 
     const { error } = await supabase.from('gifts').insert({
@@ -110,15 +89,18 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
 
   const addCategory = async (name: string) => {
     if (!user) return alert('Debes iniciar sesión')
-    const newId = name.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now().toString().slice(-4)
     const colors = ['bg-blue-500', 'bg-indigo-500', 'bg-purple-500', 'bg-pink-500', 'bg-red-500', 'bg-orange-500', 'bg-yellow-500', 'bg-green-500', 'bg-teal-500', 'bg-cyan-500', 'bg-gray-800']
     const randomColor = colors[Math.floor(Math.random() * colors.length)]
-    
-    const newCat = { id: newId, name, color: randomColor, user_id: user.id }
-    setCategories(prev => [...prev, newCat])
 
-    const { error } = await supabase.from('categories').insert(newCat)
-    if (error) fetchData()
+    const { data, error } = await supabase
+      .from('categories')
+      .insert({ name, color: randomColor, user_id: user.id })
+      .select()
+      .single()
+
+    if (!error && data) {
+      setCategories(prev => [...prev, data as Category])
+    }
   }
 
   const updateCategory = async (id: string, updates: Partial<Category>) => {

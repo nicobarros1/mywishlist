@@ -1,27 +1,18 @@
 'use client'
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useRouter } from 'next/navigation'
+import { useWishlist } from '../context/WishlistContext'
 
 export default function Header() {
-  const [user, setUser] = useState<any>(null)
+  const { user } = useWishlist()
   const router = useRouter()
 
   useEffect(() => {
-    // 1. Revisar si ya hay sesión al cargar
-    const getUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      setUser(session?.user ?? null)
-    }
-    getUser()
-
-    // 2. Escuchar cambios en vivo (si se loguea o desloguea)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
-      router.refresh() // Refresca la página para actualizar los datos
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+      router.refresh()
     })
-
     return () => subscription.unsubscribe()
   }, [router])
 

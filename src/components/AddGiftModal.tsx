@@ -1,10 +1,11 @@
 import React, { useState } from 'react'
 import { analyzeProductUrl } from '../../app/actions/analyzeProductUrl'
+import type { GiftInput } from '../types/wishlist'
 
 interface AddGiftModalProps {
   category: string
   onClose: () => void
-  onAdd: (gift: any) => void
+  onAdd: (gift: GiftInput) => void
 }
 
 // 🕵️‍♂️ Lógica de Sherlock Holmes: Adivinar nombre desde la URL si la IA falla
@@ -86,11 +87,13 @@ export default function AddGiftModal({ category, onClose, onAdd }: AddGiftModalP
       return
     }
 
-    const newGift = {
-      id: Date.now().toString(),
-      url: url, // Mantenemos el link original para comprar!
-      ...formData,
-      price: Number(formData.price) // Aseguramos que sea número
+    const newGift: GiftInput = {
+      url,
+      name: formData.name,
+      price: Number(formData.price),
+      currency: formData.currency,
+      imageUrl: formData.imageUrl,
+      description: formData.description,
     }
 
     onAdd(newGift)

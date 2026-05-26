@@ -3,16 +3,17 @@
 import Link from 'next/link'
 import { useState } from 'react'
 import CategoryCard from '../src/components/CategoryCard'
-import EditCategoryModal from '../src/components/EditCategoryModal' // Importar Modal
+import EditCategoryModal from '../src/components/EditCategoryModal'
 import { useWishlist } from '../src/context/WishlistContext'
-import ShareButton from '../src/components/ShareButton' // <--- Importar
+import ShareButton from '../src/components/ShareButton'
+import type { Category } from '../src/types/wishlist'
 
 export default function Home() {
   const { categories, addCategory, updateCategory, deleteCategory, user } = useWishlist()
   const [newCatName, setNewCatName] = useState('')
   
   // Estado para controlar qué categoría estamos editando
-  const [editingCategory, setEditingCategory] = useState<any>(null)
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null)
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault()
