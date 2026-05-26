@@ -8,6 +8,7 @@ interface WishlistContextType {
   items: Record<string, Gift[]>
   categories: Category[]
   addGift: (categoryId: string, gift: GiftInput) => Promise<void>
+  updateGift: (giftId: string, updates: Partial<GiftInput>) => Promise<void>
   removeGift: (categoryId: string, giftId: string) => Promise<void>
   addCategory: (name: string) => Promise<void>
   updateCategory: (id: string, updates: Partial<Category>) => Promise<void>
@@ -79,6 +80,32 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
     if (!error) fetchData()
   }
 
+  const updateGift = async (giftId: string, updates: Partial<GiftInput>) => {
+    // Optimistic update: recorre todas las categorías buscando el regalo
+    setItems(prev => {
+      const next: Record<string, Gift[]> = {}
+      for (const catId in prev) {
+        next[catId] = prev[catId].map(g =>
+          g.id === giftId ? { ...g, ...updates } : g
+        )
+      }
+      return next
+    })
+
+    // Mapea imageUrl (frontend) → image_url (base de datos)
+    const { imageUrl, ...rest } = updates
+    const dbUpdates = {
+      ...rest,
+      ...(imageUrl !== undefined && { image_url: imageUrl }),
+    }
+
+    const { error } = await supabase.from('gifts').update(dbUpdates).eq('id', giftId)
+    if (error) {
+      console.error(error)
+      fetchData() // revierte si falla
+    }
+  }
+
   const removeGift = async (categoryId: string, giftId: string) => {
     setItems((prev) => ({
       ...prev,
@@ -123,7 +150,7 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
 
   return (
     // IMPORTANTE: Aquí pasamos updateCategory al Provider
-    <WishlistContext.Provider value={{ items, categories, addGift, removeGift, addCategory, updateCategory, deleteCategory, loading, user }}>
+    <WishlistContext.Provider value={{ items, categories, addGift, updateGift, removeGift, addCategory, updateCategory, deleteCategory, loading, user }}>
       {children}
     </WishlistContext.Provider>
   )

@@ -1,27 +1,37 @@
 import React from 'react'
-import { Trash2 } from 'lucide-react'
+import { Pencil, Trash2 } from 'lucide-react'
 import type { Gift } from '../types/wishlist'
 
 interface GiftCardProps {
   gift: Gift
+  onEdit?: () => void
   onDelete?: () => void
 }
 
-export default function GiftCard({ gift, onDelete }: GiftCardProps) {
+export default function GiftCard({ gift, onEdit, onDelete }: GiftCardProps) {
   return (
     <div className="relative group bg-white rounded-lg shadow hover:shadow-md overflow-hidden border border-gray-100">
-      
-      {/* Botón de Eliminar (Solo visible al pasar el mouse) */}
-      {onDelete && (
-        <button 
-          onClick={(e) => {
-            e.preventDefault() // Evita que se abra el link
-            if(confirm('¿Borrar este regalo?')) onDelete()
-          }}
-          className="absolute top-2 right-2 z-10 p-2 bg-white/90 text-red-500 rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50"
-        >
-          <Trash2 size={18} />
-        </button>
+
+      {/* Botones de acción (solo visibles al pasar el mouse, solo al owner) */}
+      {(onEdit || onDelete) && (
+        <div className="absolute top-2 right-2 z-10 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          {onEdit && (
+            <button
+              onClick={(e) => { e.preventDefault(); onEdit() }}
+              className="p-2 bg-white/90 text-indigo-500 rounded-full shadow-sm hover:bg-indigo-50"
+            >
+              <Pencil size={16} />
+            </button>
+          )}
+          {onDelete && (
+            <button
+              onClick={(e) => { e.preventDefault(); if (confirm('¿Borrar este regalo?')) onDelete() }}
+              className="p-2 bg-white/90 text-red-500 rounded-full shadow-sm hover:bg-red-50"
+            >
+              <Trash2 size={16} />
+            </button>
+          )}
+        </div>
       )}
 
       {/* El Link envuelve el contenido */}

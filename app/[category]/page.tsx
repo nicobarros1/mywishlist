@@ -3,8 +3,10 @@
 import { useState, useMemo } from 'react'
 import GiftCard from '../../src/components/GiftCard'
 import AddGiftModal from '../../src/components/AddGiftModal'
-import ShareButton from '../../src/components/ShareButton' // <--- Importamos el botón nuevo
+import EditGiftModal from '../../src/components/EditGiftModal'
+import ShareButton from '../../src/components/ShareButton'
 import { useWishlist } from '../../src/context/WishlistContext'
+import type { Gift } from '../../src/types/wishlist'
 
 interface Params {
   params: { category: string }
@@ -14,10 +16,11 @@ export default function CategoryPage({ params }: Params) {
   const { category: categoryId } = params // El parámetro de la URL es el ID de la categoría
   
   // 1. Traemos todo lo necesario del contexto, incluyendo al usuario y categorías
-  const { items, categories, addGift, removeGift, user } = useWishlist()
-  
+  const { items, categories, addGift, updateGift, removeGift, user } = useWishlist()
+
   const [showModal, setShowModal] = useState(false)
   const [sortDesc, setSortDesc] = useState(false)
+  const [editingGift, setEditingGift] = useState<Gift | null>(null)
 
   // 2. Buscamos la información de la categoría actual para saber de quién es
   const currentCategory = categories.find(c => c.id === categoryId)
@@ -79,10 +82,10 @@ export default function CategoryPage({ params }: Params) {
       {sorted.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {sorted.map((g) => (
-            <GiftCard 
-              key={g.id} 
-              gift={g} 
-              // 5. SOLO EL DUEÑO PUEDE BORRAR (Si no es dueño, pasamos undefined)
+            <GiftCard
+              key={g.id}
+              gift={g}
+              onEdit={isOwner ? () => setEditingGift(g) : undefined}
               onDelete={isOwner ? () => removeGift(categoryId, g.id) : undefined}
             />
           ))}
@@ -104,7 +107,7 @@ export default function CategoryPage({ params }: Params) {
         </div>
       )}
 
-      {/* Modal solo se renderiza si es el dueño */}
+      {/* Modal agregar regalo */}
       {showModal && isOwner && (
         <AddGiftModal
           category={categoryId}
@@ -112,6 +115,18 @@ export default function CategoryPage({ params }: Params) {
           onAdd={(gift) => {
             addGift(categoryId, gift)
             setShowModal(false)
+          }}
+        />
+      )}
+
+      {/* Modal editar regalo */}
+      {editingGift && isOwner && (
+        <EditGiftModal
+          gift={editingGift}
+          onClose={() => setEditingGift(null)}
+          onSave={(updates) => {
+            updateGift(editingGift.id, updates)
+            setEditingGift(null)
           }}
         />
       )}
