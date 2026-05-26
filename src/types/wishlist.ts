@@ -10,6 +10,7 @@ export type Gift = {
   description?: string
   url: string
   user_id?: string
+  reserved?: boolean
 }
 
 export type GiftInput = {

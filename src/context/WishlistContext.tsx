@@ -9,6 +9,7 @@ interface WishlistContextType {
   categories: Category[]
   addGift: (categoryId: string, gift: GiftInput) => Promise<void>
   updateGift: (giftId: string, updates: Partial<GiftInput>) => Promise<void>
+  reserveGift: (giftId: string) => Promise<void>
   removeGift: (categoryId: string, giftId: string) => Promise<void>
   addCategory: (name: string) => Promise<void>
   updateCategory: (id: string, updates: Partial<Category>) => Promise<void>
@@ -106,6 +107,26 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  const reserveGift = async (giftId: string) => {
+    // Optimistic update: disponible para visitantes, no requiere user
+    setItems(prev => {
+      const next: Record<string, Gift[]> = {}
+      for (const catId in prev) {
+        next[catId] = prev[catId].map(g =>
+          g.id === giftId ? { ...g, reserved: true } : g
+        )
+      }
+      return next
+    })
+
+    // Usa RPC con SECURITY DEFINER para saltear RLS (visitantes no son owner)
+    const { error } = await supabase.rpc('reserve_gift', { gift_id: giftId })
+    if (error) {
+      console.error(error)
+      fetchData() // revierte si falla
+    }
+  }
+
   const removeGift = async (categoryId: string, giftId: string) => {
     setItems((prev) => ({
       ...prev,
@@ -150,7 +171,7 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
 
   return (
     // IMPORTANTE: Aquí pasamos updateCategory al Provider
-    <WishlistContext.Provider value={{ items, categories, addGift, updateGift, removeGift, addCategory, updateCategory, deleteCategory, loading, user }}>
+    <WishlistContext.Provider value={{ items, categories, addGift, updateGift, reserveGift, removeGift, addCategory, updateCategory, deleteCategory, loading, user }}>
       {children}
     </WishlistContext.Provider>
   )

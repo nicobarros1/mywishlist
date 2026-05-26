@@ -16,7 +16,7 @@ export default function CategoryPage({ params }: Params) {
   const { category: categoryId } = params // El parámetro de la URL es el ID de la categoría
   
   // 1. Traemos todo lo necesario del contexto, incluyendo al usuario y categorías
-  const { items, categories, addGift, updateGift, removeGift, user } = useWishlist()
+  const { items, categories, addGift, updateGift, reserveGift, removeGift, user } = useWishlist()
 
   const [showModal, setShowModal] = useState(false)
   const [sortDesc, setSortDesc] = useState(false)
@@ -87,6 +87,7 @@ export default function CategoryPage({ params }: Params) {
               gift={g}
               onEdit={isOwner ? () => setEditingGift(g) : undefined}
               onDelete={isOwner ? () => removeGift(categoryId, g.id) : undefined}
+              onReserve={!isOwner ? () => reserveGift(g.id) : undefined}
             />
           ))}
         </div>
